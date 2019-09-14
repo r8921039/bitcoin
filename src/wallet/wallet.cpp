@@ -4502,13 +4502,14 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
     int rescan_height = 0;
     if (!gArgs.GetBoolArg("-rescan", false))
     {
-        WalletBatch batch(*walletInstance->database);
-        CBlockLocator locator;
-        if (batch.ReadBestBlock(locator)) {
-            if (const Optional<int> fork_height = locked_chain->findLocatorFork(locator)) {
-                rescan_height = *fork_height;
-            }
-        }
+		chain.initMessage(_("DANIEL HACK: -rescan is skipped in this hack").translated);
+//        WalletBatch batch(*walletInstance->database);
+//        CBlockLocator locator;
+//        if (batch.ReadBestBlock(locator)) {
+//            if (const Optional<int> fork_height = locked_chain->findLocatorFork(locator)) {
+//                rescan_height = *fork_height;
+//            }
+//        }
     }
 
     const Optional<int> tip_height = locked_chain->getHeight();
@@ -4518,71 +4519,76 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
         walletInstance->m_last_block_processed.SetNull();
     }
 
-    if (tip_height && *tip_height != rescan_height)
-    {
-        // We can't rescan beyond non-pruned blocks, stop and throw an error.
-        // This might happen if a user uses an old wallet within a pruned node
-        // or if they ran -disablewallet for a longer time, then decided to re-enable
-        if (chain.havePruned()) {
-            // Exit early and print an error.
-            // If a block is pruned after this check, we will load the wallet,
-            // but fail the rescan with a generic error.
-            int block_height = *tip_height;
-            while (block_height > 0 && locked_chain->haveBlockOnDisk(block_height - 1) && rescan_height != block_height) {
-                --block_height;
-            }
+//    if (tip_height && *tip_height != rescan_height)
+//    {
+//        // We can't rescan beyond non-pruned blocks, stop and throw an error.
+//        // This might happen if a user uses an old wallet within a pruned node
+//        // or if they ran -disablewallet for a longer time, then decided to re-enable
+//        if (chain.havePruned()) {
+//            // Exit early and print an error.
+//            // If a block is pruned after this check, we will load the wallet,
+//            // but fail the rescan with a generic error.
+//            int block_height = *tip_height;
+//            while (block_height > 0 && locked_chain->haveBlockOnDisk(block_height - 1) && rescan_height != block_height) {
+//                --block_height;
+//            }
+//
+//            if (rescan_height != block_height) {
+//                chain.initError(_("Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)").translated);
+//                return nullptr;
+//            }
+//        }
+//
+//        chain.initMessage(_("Rescanning...").translated);
+//        walletInstance->WalletLogPrintf("Rescanning last %i blocks (from block %i)...\n", *tip_height - rescan_height, rescan_height);
+//
+//        // No need to read and scan block if block was created before
+//        // our wallet birthday (as adjusted for block time variability)
+//        if (walletInstance->nTimeFirstKey) {
+//            if (Optional<int> first_block = locked_chain->findFirstBlockWithTimeAndHeight(walletInstance->nTimeFirstKey - TIMESTAMP_WINDOW, rescan_height, nullptr)) {
+//                rescan_height = *first_block;
+//            }
+//        }
+//
+//        {
+//            WalletRescanReserver reserver(walletInstance.get());
+//            if (!reserver.reserve() || (ScanResult::SUCCESS != walletInstance->ScanForWalletTransactions(locked_chain->getBlockHash(rescan_height), {} /* stop block */, reserver, true /* update */).status)) {
+//                chain.initError(_("Failed to rescan the wallet during initialization").translated);
+//                return nullptr;
+//            }
+//        }
+//
+//        walletInstance->ChainStateFlushed(locked_chain->getTipLocator());
+//        walletInstance->database->IncrementUpdateCounter();
+//
+//        // Restore wallet transaction metadata after -zapwallettxes=1
+//        if (gArgs.GetBoolArg("-zapwallettxes", false) && gArgs.GetArg("-zapwallettxes", "1") != "2")
+//        {
+//            WalletBatch batch(*walletInstance->database);
+//
+//            for (const CWalletTx& wtxOld : vWtx)
+//            {
+//                uint256 hash = wtxOld.GetHash();
+//                std::map<uint256, CWalletTx>::iterator mi = walletInstance->mapWallet.find(hash);
+//                if (mi != walletInstance->mapWallet.end())
+//                {
+//                    const CWalletTx* copyFrom = &wtxOld;
+//                    CWalletTx* copyTo = &mi->second;
+//                    copyTo->mapValue = copyFrom->mapValue;
+//                    copyTo->vOrderForm = copyFrom->vOrderForm;
+//                    copyTo->nTimeReceived = copyFrom->nTimeReceived;
+//                    copyTo->nTimeSmart = copyFrom->nTimeSmart;
+//                    copyTo->fFromMe = copyFrom->fFromMe;
+//                    copyTo->nOrderPos = copyFrom->nOrderPos;
+//                    batch.WriteTx(*copyTo);
+//                }
+//            }
+//        }
+//    }
 
-            if (rescan_height != block_height) {
-                chain.initError(_("Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)").translated);
-                return nullptr;
-            }
-        }
-
-        chain.initMessage(_("Rescanning...").translated);
-        walletInstance->WalletLogPrintf("Rescanning last %i blocks (from block %i)...\n", *tip_height - rescan_height, rescan_height);
-
-        // No need to read and scan block if block was created before
-        // our wallet birthday (as adjusted for block time variability)
-        if (walletInstance->nTimeFirstKey) {
-            if (Optional<int> first_block = locked_chain->findFirstBlockWithTimeAndHeight(walletInstance->nTimeFirstKey - TIMESTAMP_WINDOW, rescan_height, nullptr)) {
-                rescan_height = *first_block;
-            }
-        }
-
-        {
-            WalletRescanReserver reserver(walletInstance.get());
-            if (!reserver.reserve() || (ScanResult::SUCCESS != walletInstance->ScanForWalletTransactions(locked_chain->getBlockHash(rescan_height), {} /* stop block */, reserver, true /* update */).status)) {
-                chain.initError(_("Failed to rescan the wallet during initialization").translated);
-                return nullptr;
-            }
-        }
-        walletInstance->ChainStateFlushed(locked_chain->getTipLocator());
-        walletInstance->database->IncrementUpdateCounter();
-
-        // Restore wallet transaction metadata after -zapwallettxes=1
-        if (gArgs.GetBoolArg("-zapwallettxes", false) && gArgs.GetArg("-zapwallettxes", "1") != "2")
-        {
-            WalletBatch batch(*walletInstance->database);
-
-            for (const CWalletTx& wtxOld : vWtx)
-            {
-                uint256 hash = wtxOld.GetHash();
-                std::map<uint256, CWalletTx>::iterator mi = walletInstance->mapWallet.find(hash);
-                if (mi != walletInstance->mapWallet.end())
-                {
-                    const CWalletTx* copyFrom = &wtxOld;
-                    CWalletTx* copyTo = &mi->second;
-                    copyTo->mapValue = copyFrom->mapValue;
-                    copyTo->vOrderForm = copyFrom->vOrderForm;
-                    copyTo->nTimeReceived = copyFrom->nTimeReceived;
-                    copyTo->nTimeSmart = copyFrom->nTimeSmart;
-                    copyTo->fFromMe = copyFrom->fFromMe;
-                    copyTo->nOrderPos = copyFrom->nOrderPos;
-                    batch.WriteTx(*copyTo);
-                }
-            }
-        }
-    }
+    chain.initMessage(_("DANIEL HACK: update wallet to the block chain tip, assuming no wallet txns").translated);
+    walletInstance->ChainStateFlushed(locked_chain->getTipLocator());
+    walletInstance->database->IncrementUpdateCounter();
 
     chain.loadWallet(interfaces::MakeWallet(walletInstance));
 
