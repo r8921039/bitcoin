@@ -95,8 +95,8 @@ enum BlockStatus: uint32_t {
     //! Unused.
     BLOCK_VALID_UNKNOWN      =    0,
 
-    //! Parsed, version ok, hash satisfies claimed PoW, 1 <= vtx count <= max, timestamp not in future
-    BLOCK_VALID_HEADER       =    1,
+    //! Reserved (was BLOCK_VALID_HEADER).
+    BLOCK_VALID_RESERVED     =    1,
 
     //! All parent headers found, difficulty matches, timestamp >= median previous, checkpoint. Implies all parents
     //! are also at least TREE.
@@ -117,7 +117,7 @@ enum BlockStatus: uint32_t {
     BLOCK_VALID_SCRIPTS      =    5,
 
     //! All validity bits.
-    BLOCK_VALID_MASK         =   BLOCK_VALID_HEADER | BLOCK_VALID_TREE | BLOCK_VALID_TRANSACTIONS |
+    BLOCK_VALID_MASK         =   BLOCK_VALID_RESERVED | BLOCK_VALID_TREE | BLOCK_VALID_TRANSACTIONS |
                                  BLOCK_VALID_CHAIN | BLOCK_VALID_SCRIPTS,
 
     BLOCK_HAVE_DATA          =    8, //!< full block available in blk*.dat
@@ -465,8 +465,8 @@ public:
     /** Find the last common block between this chain and a block index entry. */
     const CBlockIndex *FindFork(const CBlockIndex *pindex) const;
 
-    /** Find the earliest block with timestamp equal or greater than the given. */
-    CBlockIndex* FindEarliestAtLeast(int64_t nTime) const;
+    /** Find the earliest block with timestamp equal or greater than the given time and height equal or greater than the given height. */
+    CBlockIndex* FindEarliestAtLeast(int64_t nTime, int height) const;
 };
 
 #endif // BITCOIN_CHAIN_H

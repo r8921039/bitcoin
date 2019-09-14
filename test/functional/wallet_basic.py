@@ -20,6 +20,9 @@ from test_framework.util import (
 class WalletTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
+        self.extra_args = [[
+            "-acceptnonstdtxn=1",
+        ]] * self.num_nodes
         self.setup_clean_chain = True
 
     def skip_test_if_missing_module(self):
@@ -495,6 +498,11 @@ class WalletTest(BitcoinTestFramework):
                 change = address
         self.nodes[0].setlabel(change, 'foobar')
         assert_equal(self.nodes[0].getaddressinfo(change)['ischange'], False)
+
+        # Test "verbose" field value in gettransaction response
+        self.log.info("Testing verbose gettransaction...")
+        tx = self.nodes[0].gettransaction(txid=txid, verbose=True)
+        assert_equal(tx["details"], self.nodes[0].decoderawtransaction(tx["hex"]))
 
 
 if __name__ == '__main__':

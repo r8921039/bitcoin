@@ -5,8 +5,10 @@
 #include <stdio.h>
 #include <util/system.h>
 #include <walletinitinterface.h>
+#include <support/allocators/secure.h>
 
 class CWallet;
+enum class WalletCreationStatus;
 
 namespace interfaces {
 class Chain;
@@ -23,11 +25,33 @@ public:
 
 void DummyWalletInit::AddWalletOptions() const
 {
-    std::vector<std::string> opts = {"-addresstype", "-changetype", "-disablewallet", "-discardfee=<amt>", "-fallbackfee=<amt>",
-        "-keypool=<n>", "-mintxfee=<amt>", "-paytxfee=<amt>", "-rescan", "-salvagewallet", "-spendzeroconfchange",  "-txconfirmtarget=<n>",
-        "-upgradewallet", "-wallet=<path>", "-walletbroadcast", "-walletdir=<dir>", "-walletnotify=<cmd>", "-walletrbf", "-zapwallettxes=<mode>",
-        "-dblogsize=<n>", "-flushwallet", "-privdb", "-walletrejectlongchains"};
-    gArgs.AddHiddenArgs(opts);
+    gArgs.AddHiddenArgs({
+        "-addresstype",
+        "-avoidpartialspends",
+        "-changetype",
+        "-disablewallet",
+        "-discardfee=<amt>",
+        "-fallbackfee=<amt>",
+        "-keypool=<n>",
+        "-maxtxfee=<amt>",
+        "-mintxfee=<amt>",
+        "-paytxfee=<amt>",
+        "-rescan",
+        "-salvagewallet",
+        "-spendzeroconfchange",
+        "-txconfirmtarget=<n>",
+        "-upgradewallet",
+        "-wallet=<path>",
+        "-walletbroadcast",
+        "-walletdir=<dir>",
+        "-walletnotify=<cmd>",
+        "-walletrbf",
+        "-zapwallettxes=<mode>",
+        "-dblogsize=<n>",
+        "-flushwallet",
+        "-privdb",
+        "-walletrejectlongchains",
+    });
 }
 
 const WalletInitInterface& g_wallet_init_interface = DummyWalletInit();
@@ -48,6 +72,11 @@ std::vector<std::shared_ptr<CWallet>> GetWallets()
 }
 
 std::shared_ptr<CWallet> LoadWallet(interfaces::Chain& chain, const std::string& name, std::string& error, std::string& warning)
+{
+    throw std::logic_error("Wallet function called in non-wallet build.");
+}
+
+WalletCreationStatus CreateWallet(interfaces::Chain& chain, const SecureString& passphrase, uint64_t wallet_creation_flags, const std::string& name, std::string& error, std::string& warning, std::shared_ptr<CWallet>& result)
 {
     throw std::logic_error("Wallet function called in non-wallet build.");
 }
