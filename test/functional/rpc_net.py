@@ -15,18 +15,17 @@ from test_framework.util import (
     assert_greater_than_or_equal,
     assert_greater_than,
     assert_raises_rpc_error,
-    connect_nodes_bi,
+    connect_nodes,
     p2p_port,
     wait_until,
 )
 from test_framework.mininode import P2PInterface
+import test_framework.messages
 from test_framework.messages import (
     CAddress,
     msg_addr,
     NODE_NETWORK,
     NODE_WITNESS,
-    NODE_GETUTXO,NODE_BLOOM,
-    NODE_NETWORK_LIMITED,
 )
 
 def assert_net_servicesnames(servicesflag, servicenames):
@@ -34,18 +33,12 @@ def assert_net_servicesnames(servicesflag, servicenames):
     `getpeerinfo` and `getnetworkinfo`.
 
     :param servicesflag: The services as an integer.
-    :param servicesnames: The list of decoded services names, as strings.
+    :param servicenames: The list of decoded services names, as strings.
     """
-    if servicesflag & NODE_NETWORK:
-        assert "NETWORK" in servicenames
-    if servicesflag & NODE_GETUTXO:
-        assert "GETUTXO" in servicenames
-    if servicesflag & NODE_BLOOM:
-        assert "BLOOM" in servicenames
-    if servicesflag & NODE_WITNESS:
-        assert "WITNESS" in servicenames
-    if servicesflag & NODE_NETWORK_LIMITED:
-        assert "NETWORK_LIMITED" in servicenames
+    servicesflag_generated = 0
+    for servicename in servicenames:
+        servicesflag_generated |= getattr(test_framework.messages, 'NODE_' + servicename)
+    assert servicesflag_generated == servicesflag
 
 class NetTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -54,6 +47,10 @@ class NetTest(BitcoinTestFramework):
         self.extra_args = [["-minrelaytxfee=0.00001000"],["-minrelaytxfee=0.00000500"]]
 
     def run_test(self):
+        self.log.info('Connect nodes both way')
+        connect_nodes(self.nodes[0], 1)
+        connect_nodes(self.nodes[1], 0)
+
         self._test_connection_count()
         self._test_getnettotals()
         self._test_getnetworkinfo()
@@ -62,7 +59,7 @@ class NetTest(BitcoinTestFramework):
         self._test_getnodeaddresses()
 
     def _test_connection_count(self):
-        # connect_nodes_bi connects each node to the other
+        # connect_nodes connects each node to the other
         assert_equal(self.nodes[0].getconnectioncount(), 2)
 
     def _test_getnettotals(self):
@@ -105,14 +102,17 @@ class NetTest(BitcoinTestFramework):
         wait_until(lambda: self.nodes[0].getnetworkinfo()['connections'] == 0, timeout=3)
 
         self.nodes[0].setnetworkactive(state=True)
-        connect_nodes_bi(self.nodes, 0, 1)
+        self.log.info('Connect nodes both way')
+        connect_nodes(self.nodes[0], 1)
+        connect_nodes(self.nodes[1], 0)
+
         assert_equal(self.nodes[0].getnetworkinfo()['networkactive'], True)
         assert_equal(self.nodes[0].getnetworkinfo()['connections'], 2)
 
         # check the `servicesnames` field
         network_info = [node.getnetworkinfo() for node in self.nodes]
         for info in network_info:
-            assert_net_servicesnames(int(info["localservices"]), info["localservicesnames"])
+            assert_net_servicesnames(int(info["localservices"], 0x10), info["localservicesnames"])
 
     def _test_getaddednodeinfo(self):
         assert_equal(self.nodes[0].getaddednodeinfo(), [])
@@ -136,7 +136,7 @@ class NetTest(BitcoinTestFramework):
         assert_equal(peer_info[1][0]['minfeefilter'], Decimal("0.00001000"))
         # check the `servicesnames` field
         for info in peer_info:
-            assert_net_servicesnames(int(info[0]["services"]), info[0]["servicesnames"])
+            assert_net_servicesnames(int(info[0]["services"], 0x10), info[0]["servicesnames"])
 
     def _test_getnodeaddresses(self):
         self.nodes[0].add_p2p_connection(P2PInterface())
